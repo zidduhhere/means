@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: means-linux
+            binary: dist/means
+          - os: macos-latest
+            artifact: means-macos
+            binary: dist/means
+          - os: windows-latest
+            artifact: means-windows
+            binary: dist/means.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e . pyinstaller
+
+      - name: Build binary
+        run: >
+          pyinstaller
+          --onefile
+          --name means
+          --collect-all textual
+          src/means/__main__.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.binary }}
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      # Rename so the release assets have distinct, platform-labelled names.
+      - name: Stage release assets
+        run: |
+          mkdir release
+          cp artifacts/means-linux/means    release/means-linux-amd64
+          cp artifacts/means-macos/means    release/means-macos-amd64
+          cp artifacts/means-windows/means.exe release/means-windows-amd64.exe
+          chmod +x release/means-linux-amd64 release/means-macos-amd64
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          files: |
+            release/means-linux-amd64
+            release/means-macos-amd64
+            release/means-windows-amd64.exe
