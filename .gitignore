@@ -13,6 +13,7 @@ env/
 
 # PyInstaller
 *.spec
+!means.spec
 
 # pytest
 .pytest_cache/
