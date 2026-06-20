@@ -7,7 +7,26 @@ Lookup failures are shown as a friendly card rather than a traceback.
 from __future__ import annotations
 
 import argparse
+import importlib.util
+import subprocess
 import sys
+
+
+def _ensure_deps() -> None:
+    """Install missing third-party dependencies into the running Python."""
+    specs = [("httpx", "httpx>=0.24"), ("textual", "textual>=0.50")]
+    missing = [spec for mod, spec in specs if importlib.util.find_spec(mod) is None]
+    if not missing:
+        return
+    print(f"means: installing {', '.join(missing)} …", file=sys.stderr)
+    cmd = [sys.executable, "-m", "pip", "install", *missing]
+    try:
+        subprocess.check_call(cmd + ["--break-system-packages"])
+    except subprocess.CalledProcessError:
+        subprocess.check_call(cmd)
+
+
+_ensure_deps()
 
 from . import __version__
 from .api import LookupServiceError, WordNotFound, fetch_word
