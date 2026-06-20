@@ -54,7 +54,19 @@ class Entry:
             for raw_meaning in entry.get("meanings", []):
                 meanings.append(_parse_meaning(raw_meaning))
 
+        meanings.sort(key=_pos_priority)
         return cls(word=word, phonetic=phonetic, meanings=meanings)
+
+
+_POS_ORDER = ["adjective", "adverb", "verb", "noun", "pronoun", "preposition", "conjunction", "interjection"]
+
+
+def _pos_priority(meaning: "Meaning") -> int:
+    pos = meaning.part_of_speech.lower()
+    try:
+        return _POS_ORDER.index(pos)
+    except ValueError:
+        return len(_POS_ORDER)
 
 
 def _first_phonetic(raw_json: List[dict]) -> Optional[str]:
